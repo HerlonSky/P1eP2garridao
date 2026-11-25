@@ -12,6 +12,9 @@ sem autenticação. Qualquer pessoa com o endereço do sistema vê e altera os d
 **Correção:** `@login_required` em todas as views, telas de login/logout e
 `IsAuthenticated` como permissão padrão da API.
 
+**Status:** ✅ corrigido. Login obrigatório via `@organizacao_requerida` (que também exige o perfil)
+e `IsAuthenticated` + `TemOrganizacao` na API.
+
 ## 2. `parcela_marcar_paga` aceita GET
 
 O template usa um formulário POST, mas a view não confere o método: abrir
@@ -19,6 +22,8 @@ O template usa um formulário POST, mas a view não confere o método: abrir
 Uma ação que muda dados não pode ser disparada por um simples link.
 
 **Correção:** `@require_POST` na view.
+
+**Status:** ✅ corrigido. GET agora responde 405.
 
 ## 3. Regra do valor > 0 está no form, não no model
 
@@ -28,6 +33,9 @@ porque o serializer não usa o form. A Aula 13 pede um lugar principal para cada
 
 **Correção:** mover a regra para `Lancamento.clean()` (model). O form e o serializer
 passam a chamar a mesma validação.
+
+**Status:** ✅ corrigido. `Lancamento.clean()` é chamado pelo ModelForm, pelo Admin e pelo
+serializer (`ValidaPeloModelMixin`).
 
 ## 4. Consultas N+1 no dashboard e nos orçamentos
 
@@ -40,6 +48,9 @@ Com poucas contas não aparece, mas cresce com o número de registros.
 **Correção:** calcular os totais com `annotate()` numa única consulta e
 reaproveitar o valor já calculado nas propriedades.
 
+**Status:** ✅ corrigido. `Conta.objects.com_saldo()` e `Orcamento.objects.com_gasto()`.
+Dashboard: de 99 para 11 consultas (detalhes no README). Travado com `assertNumQueries`.
+
 ## 5. CRUD incompleto nas telas
 
 Pelas telas só dá para **criar** lançamentos e orçamentos. Contas e categorias
@@ -49,3 +60,5 @@ próprios dados.
 
 **Correção:** telas de contas e categorias e ações de editar/excluir,
 sempre filtradas pela organização do usuário.
+
+**Status:** ✅ corrigido. `financas/views_cadastros.py`, com as permissões por papel.
