@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from core.utils import org_atual
 
-from .models import Categoria, Conta, Lancamento
+from .models import Categoria, Conta, Lancamento, Orcamento, Parcela
 
 
 class DaOrganizacaoSerializerMixin:
@@ -58,15 +58,70 @@ class ValidaPeloModelMixin:
         return attrs
 
 
+# Em todos os serializers os campos são listados um a um (nada de "__all__"),
+# e "organizacao" fica de fora: quem define é o usuário logado.
+
+
+class ContaSerializer(ValidaPeloModelMixin, serializers.ModelSerializer):
+    saldo_atual = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = Conta
+        fields = ['id', 'nome', 'tipo', 'saldo_inicial', 'saldo_atual', 'criada_em']
+        read_only_fields = ['criada_em']
+
+
+class CategoriaSerializer(ValidaPeloModelMixin, serializers.ModelSerializer):
+    class Meta:
+        model = Categoria
+        fields = ['id', 'nome', 'tipo']
+
+
+class ParcelaResumoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Parcela
+        fields = ['id', 'numero', 'valor', 'data_vencimento', 'paga']
+
+
 class LancamentoSerializer(DaOrganizacaoSerializerMixin, ValidaPeloModelMixin, serializers.ModelSerializer):
     campos_da_organizacao = {'conta': Conta, 'categoria': Categoria}
 
+    # Relacionamentos: o id é usado para gravar; o nome vem junto só para leitura.
+    conta_nome = serializers.CharField(source='conta.nome', read_only=True)
+    categoria_nome = serializers.CharField(source='categoria.nome', read_only=True)
+    parcelas = ParcelaResumoSerializer(many=True, read_only=True)
+
     class Meta:
         model = Lancamento
-        # Campos listados um a um (nada de "__all__"), como pede a Aula 13.
-        # "organizacao" fica fora: quem define é o usuário logado.
         fields = [
-            'id', 'conta', 'categoria', 'descricao', 'valor', 'tipo',
-            'data', 'parcelado', 'numero_parcelas', 'criado_em',
+            'id', 'conta', 'conta_nome', 'categoria', 'categoria_nome', 'descricao', 'valor',
+            'tipo', 'data', 'parcelado', 'numero_parcelas', 'parcelas', 'criado_em',
         ]
         read_only_fields = ['criado_em']
+
+
+class ParcelaSerializer(serializers.ModelSerializer):
+    """Parcelas são geradas pelo lançamento: pela API só dá para marcar como paga."""
+
+    lancamento_descricao = serializers.CharField(source='lancamento.descricao', read_only=True)
+
+    class Meta:
+        model = Parcela
+        fields = ['id', 'lancamento', 'lancamento_descricao', 'numero', 'valor', 'data_vencimento', 'paga']
+        read_only_fields = ['lancamento', 'numero', 'valor', 'data_vencimento']
+
+
+class OrcamentoSerializer(DaOrganizacaoSerializerMixin, ValidaPeloModelMixin, serializers.ModelSerializer):
+    campos_da_organizacao = {'categoria': Categoria}
+
+    categoria_nome = serializers.CharField(source='categoria.nome', read_only=True)
+    valor_gasto = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    percentual_usado = serializers.FloatField(read_only=True)
+    estourado = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Orcamento
+        fields = [
+            'id', 'categoria', 'categoria_nome', 'mes', 'ano', 'valor_limite',
+            'valor_gasto', 'percentual_usado', 'estourado',
+        ]

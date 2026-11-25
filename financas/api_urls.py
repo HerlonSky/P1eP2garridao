@@ -1,8 +1,14 @@
-from django.urls import path
+from rest_framework.routers import DefaultRouter
 
-from .api_views import LancamentoDetail, LancamentoListCreate
+from . import api_views
 
-urlpatterns = [
-    path('lancamentos/', LancamentoListCreate.as_view(), name='api_lancamento_lista'),
-    path('lancamentos/<int:pk>/', LancamentoDetail.as_view(), name='api_lancamento_detalhe'),
-]
+# O router gera, para cada recurso, /api/<recurso>/ e /api/<recurso>/<id>/,
+# além da raiz navegável /api/.
+router = DefaultRouter()
+router.register('contas', api_views.ContaViewSet, basename='api-conta')
+router.register('categorias', api_views.CategoriaViewSet, basename='api-categoria')
+router.register('lancamentos', api_views.LancamentoViewSet, basename='api-lancamento')
+router.register('parcelas', api_views.ParcelaViewSet, basename='api-parcela')
+router.register('orcamentos', api_views.OrcamentoViewSet, basename='api-orcamento')
+
+urlpatterns = router.urls
