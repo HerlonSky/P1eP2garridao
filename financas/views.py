@@ -47,7 +47,7 @@ def dashboard(request):
         'ranking_categorias': dados['ranking_categorias'],
         'distribuicao_contas': dados['distribuicao_contas'],
         'serie_mensal': dados.get('serie_mensal', []),
-        'graficos': para_grafico(dados),
+        'graficos': para_grafico(dados, ids_contas=[c.pk for c in sorted(contas, key=lambda c: c.pk)]),
         # Dashboard por papel (Aula 17): série e exportação só para administradores.
         'mostra_series': eh_admin,
         'contas': contas,

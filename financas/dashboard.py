@@ -107,7 +107,7 @@ def distribuicao_por_conta(base):
     """Fatias das despesas por conta (poucas fatias: boa para rosca/pizza)."""
     return list(
         base.filter(DESPESA)
-        .values('lancamento__conta__nome')
+        .values('lancamento__conta_id', 'lancamento__conta__nome')
         .annotate(total=Sum('valor'))
         .order_by('-total')
     )
@@ -126,20 +126,36 @@ def metricas(org, inicio=None, fim=None, com_serie=True):
     return dados
 
 
-def para_grafico(dados):
+MAX_FATIAS = 5  # acima disso, o resto vira "Outras" (pizza com poucas fatias)
+
+
+def para_grafico(dados, ids_contas=()):
     """Converte para tipos que o JavaScript entende (texto e número).
 
     O mês vira "MM/AAAA" para servir de rótulo do eixo; Decimal vira float.
+    Na distribuição, cada conta recebe um índice de cor FIXO (pela ordem de
+    cadastro), para a cor seguir a conta e não mudar quando o filtro muda.
     """
+    posicao = {id_conta: i for i, id_conta in enumerate(ids_contas)}
+    fatias = [
+        {
+            'rotulo': r['lancamento__conta__nome'],
+            'total': float(r['total']),
+            'cor': posicao.get(r['lancamento__conta_id'], 0) % MAX_FATIAS,
+        }
+        for r in dados['distribuicao_contas']
+    ]
+    if len(fatias) > MAX_FATIAS:
+        resto = fatias[MAX_FATIAS - 1:]
+        fatias = fatias[:MAX_FATIAS - 1] + [
+            {'rotulo': 'Outras', 'total': sum(f['total'] for f in resto), 'cor': None},
+        ]
     return {
         'ranking': [
             {'rotulo': r['lancamento__categoria__nome'], 'total': float(r['total'])}
             for r in dados['ranking_categorias']
         ],
-        'distribuicao': [
-            {'rotulo': r['lancamento__conta__nome'], 'total': float(r['total'])}
-            for r in dados['distribuicao_contas']
-        ],
+        'distribuicao': fatias,
         'serie': [
             {'mes': r['mes'].strftime('%m/%Y'), 'receitas': float(r['receitas']), 'despesas': float(r['despesas'])}
             for r in dados.get('serie_mensal', [])

@@ -1,5 +1,5 @@
 {% extends 'financas/base.html' %}
-{% load l10n %}
+{% load l10n static %}
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
@@ -83,6 +83,9 @@
     <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-header">Categorias com mais gastos</div>
+            {% if ranking_categorias %}
+                <div class="p-3" style="height: 220px;"><canvas id="grafico-ranking" aria-label="Gráfico das categorias com mais gastos" role="img"></canvas></div>
+            {% endif %}
             <ul class="list-group list-group-flush">
                 {% for item in ranking_categorias %}
                     <li class="list-group-item d-flex justify-content-between">
@@ -100,6 +103,9 @@
     <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-header">Despesas por conta</div>
+            {% if distribuicao_contas %}
+                <div class="p-3" style="height: 220px;"><canvas id="grafico-distribuicao" aria-label="Gráfico das despesas por conta" role="img"></canvas></div>
+            {% endif %}
             <ul class="list-group list-group-flush">
                 {% for item in distribuicao_contas %}
                     <li class="list-group-item d-flex justify-content-between">
@@ -117,7 +123,14 @@
 {% if mostra_series %}
 <!-- Série temporal: TruncMonth (só administradores) -->
 <div class="card mb-4">
-    <div class="card-header">Receitas × despesas por mês</div>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Receitas × despesas por mês</span>
+    </div>
+    {% if serie_mensal %}
+        <div class="p-3" style="height: 300px;"><canvas id="grafico-serie" aria-label="Gráfico de receitas e despesas por mês" role="img"></canvas></div>
+    {% endif %}
+    <details class="px-3 pb-2">
+    <summary class="small text-muted mb-2">Ver tabela</summary>
     <div class="table-responsive">
         <table class="table table-sm mb-0">
             <thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th></tr></thead>
@@ -134,6 +147,7 @@
             </tbody>
         </table>
     </div>
+    </details>
 </div>
 {% endif %}
 
@@ -198,4 +212,8 @@
         </div>
     </div>
 </div>
+{# Dados das métricas como JSON seguro (json_script) + Chart.js + nosso script em arquivo separado #}
+{{ graficos|json_script:"dados-graficos" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'financas/js/dashboard.js' %}"></script>
 {% endblock %}
