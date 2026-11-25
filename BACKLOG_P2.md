@@ -1,8 +1,9 @@
 # Backlog da P2
 
 Os quatro pilares da P2 (Aula 13) quebrados em tarefas, cada uma menor que uma sessão de aula.
-Cada item pode virar uma issue no GitHub com o rótulo do pilar (`multi-org`, `perfis`,
-`api`, `dashboard`). Ao lado de cada tarefa está o commit que a entregou.
+Cada tarefa é uma **issue no GitHub** (#1 a #20) com o rótulo do pilar (`melhorias-p1`,
+`multi-org`, `perfis`, `api`, `dashboard`), fechada com o commit que a entregou.
+Veja em: https://github.com/HerlonSky/p1garridao/issues?q=is%3Aissue
 
 ## Revisão da P1
 
