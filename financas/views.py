@@ -1,14 +1,16 @@
 import calendar
+import csv
 from datetime import date
 
 from django.contrib import messages
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from core.utils import org_atual, organizacao_requerida, papel_requerido
 
-from .dashboard import ler_periodo, metricas, para_grafico
+from .dashboard import base_parcelas, ler_periodo, metricas, para_grafico
 from .forms import LancamentoForm, OrcamentoForm
 from .models import Categoria, Conta, Lancamento, Orcamento, Parcela
 from .views_cadastros import _salvar
@@ -58,6 +60,44 @@ def dashboard(request):
         'mes_atual': hoje.month,
         'ano_atual': hoje.year,
     })
+
+
+def _celula_segura(valor):
+    """Evita injeção de fórmula: o Excel executa células que começam com = + - @."""
+    texto = str(valor)
+    return "'" + texto if texto[:1] in ('=', '+', '-', '@') else texto
+
+
+@papel_requerido('admin')
+def dashboard_exportar_csv(request):
+    """Relatório das parcelas do período em CSV, com a MESMA base do dashboard
+    (organização + período). Formato do Excel em português: ";" e vírgula decimal."""
+    org = org_atual(request)
+    _, inicio, fim = ler_periodo(request.GET)
+    parcelas = (
+        base_parcelas(org, inicio, fim)
+        .select_related('lancamento', 'lancamento__conta', 'lancamento__categoria')  # sem N+1
+        .order_by('data_vencimento', 'lancamento__descricao')
+    )
+
+    resposta = HttpResponse(content_type='text/csv; charset=utf-8')
+    nome = f'parcelas_{inicio or "inicio"}_{fim or "hoje"}.csv'
+    resposta['Content-Disposition'] = f'attachment; filename="{nome}"'
+    resposta.write('﻿')  # BOM: o Excel reconhece o UTF-8 e mostra os acentos
+    escritor = csv.writer(resposta, delimiter=';')
+    escritor.writerow(['Vencimento', 'Descrição', 'Parcela', 'Tipo', 'Categoria', 'Conta', 'Valor', 'Paga'])
+    for p in parcelas:
+        escritor.writerow([
+            p.data_vencimento.strftime('%d/%m/%Y'),
+            _celula_segura(p.lancamento.descricao),
+            f'{p.numero}/{p.lancamento.numero_parcelas}',
+            p.lancamento.get_tipo_display(),
+            _celula_segura(p.lancamento.categoria.nome),
+            _celula_segura(p.lancamento.conta.nome),
+            f'{p.valor:.2f}'.replace('.', ','),
+            'Sim' if p.paga else 'Não',
+        ])
+    return resposta
 
 
 def atalhos_de_periodo(hoje):

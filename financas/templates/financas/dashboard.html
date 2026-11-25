@@ -29,6 +29,9 @@
         {% for rotulo, query in atalhos %}
             <a href="{{ query }}" class="btn btn-sm btn-outline-secondary">{{ rotulo }}</a>
         {% endfor %}
+        {% if mostra_series %}
+            <a href="{% url 'dashboard_exportar_csv' %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-outline-primary">⬇ Exportar CSV</a>
+        {% endif %}
     </form>
 </div>
 

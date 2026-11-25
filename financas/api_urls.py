@@ -1,3 +1,4 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from . import api_views
@@ -11,4 +12,6 @@ router.register('lancamentos', api_views.LancamentoViewSet, basename='api-lancam
 router.register('parcelas', api_views.ParcelaViewSet, basename='api-parcela')
 router.register('orcamentos', api_views.OrcamentoViewSet, basename='api-orcamento')
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('dashboard/', api_views.DashboardApi.as_view(), name='api-dashboard'),
+] + router.urls

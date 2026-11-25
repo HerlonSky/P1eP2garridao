@@ -12,10 +12,12 @@ from django.db.models import ProtectedError, Q
 from rest_framework import mixins, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from core.permissions import EhAdminOuSomenteLeitura, SomenteAdminExclui, TemOrganizacao
 from core.utils import org_atual
 
+from .dashboard import ler_periodo, metricas
 from .models import Categoria, Conta, Lancamento, Orcamento, Parcela
 from .serializers import (
     CategoriaSerializer, ContaSerializer, LancamentoSerializer, OrcamentoSerializer, ParcelaSerializer,
@@ -95,3 +97,37 @@ class OrcamentoViewSet(DaOrganizacaoMixin, viewsets.ModelViewSet):
     queryset = Orcamento.objects.select_related('categoria').com_gasto()
     serializer_class = OrcamentoSerializer
     permission_classes = PERMISSOES_BASE + [EhAdminOuSomenteLeitura]
+
+
+class DashboardApi(APIView):
+    """GET /api/dashboard/?inicio=AAAA-MM-DD&fim=AAAA-MM-DD
+
+    As mesmas métricas da tela, em JSON, reaproveitando financas/dashboard.py
+    (nenhuma consulta duplicada). A série mensal só vai para administradores.
+    """
+
+    permission_classes = PERMISSOES_BASE
+
+    def get(self, request):
+        form, inicio, fim = ler_periodo(request.query_params)
+        if form.is_bound and not form.is_valid():
+            return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
+        dados = metricas(org_atual(request), inicio, fim, com_serie=request.user.perfil.eh_admin)
+        resposta = {
+            'periodo': {'inicio': inicio, 'fim': fim},
+            'kpis': dados['kpis'],
+            'ranking_categorias': [
+                {'categoria': r['lancamento__categoria__nome'], 'total': r['total']}
+                for r in dados['ranking_categorias']
+            ],
+            'distribuicao_contas': [
+                {'conta': r['lancamento__conta__nome'], 'total': r['total']}
+                for r in dados['distribuicao_contas']
+            ],
+        }
+        if 'serie_mensal' in dados:
+            resposta['serie_mensal'] = [
+                {'mes': r['mes'].strftime('%Y-%m'), 'receitas': r['receitas'], 'despesas': r['despesas']}
+                for r in dados['serie_mensal']
+            ]
+        return Response(resposta)
