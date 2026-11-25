@@ -42,15 +42,31 @@ class DaOrganizacao(models.Model):
 
 
 class Perfil(models.Model):
-    """Liga o User do Django (sem alterá-lo) a uma organização."""
+    """Liga o User do Django (sem alterá-lo) a uma organização e a um papel.
+
+    Cada usuário pertence a UMA organização e tem UM papel. O papel decide o
+    que cada tela e cada endpoint da API permitem.
+    """
+
+    ADMIN = 'admin'
+    OPERADOR = 'operador'
+    PAPEIS = [
+        (ADMIN, 'Administrador'),
+        (OPERADOR, 'Operador'),
+    ]
 
     usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil')
     organizacao = models.ForeignKey(
         Organizacao, on_delete=models.PROTECT, related_name='perfis', verbose_name='organização',
     )
+    papel = models.CharField(max_length=20, choices=PAPEIS, default=OPERADOR)
 
     class Meta:
         verbose_name_plural = 'perfis'
 
     def __str__(self):
-        return f'{self.usuario.username} ({self.organizacao})'
+        return f'{self.usuario.username} ({self.organizacao} · {self.get_papel_display()})'
+
+    @property
+    def eh_admin(self):
+        return self.papel == self.ADMIN

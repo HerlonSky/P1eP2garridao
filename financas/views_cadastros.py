@@ -4,6 +4,10 @@ Melhoria 5 do MELHORIAS_P1.md: antes só dava para criar pelas telas, e
 editar/excluir só pelo Admin. Com multi-organização o usuário comum não usa o
 Admin, então as telas precisam cobrir o CRUD completo.
 
+Papéis (Aula 15): cadastros de contas, categorias e orçamentos e qualquer
+exclusão são exclusivos de administradores (@papel_requerido('admin')).
+Operadores veem as listas e criam/editam lançamentos.
+
 Todas as funções recebem o objeto já buscado com a organização do usuário
 (get_object_or_404 com organizacao=org), então um id de outra organização dá 404.
 """
@@ -12,7 +16,7 @@ from django.contrib import messages
 from django.db.models import Count, ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 
-from core.utils import org_atual, organizacao_requerida
+from core.utils import org_atual, organizacao_requerida, papel_requerido
 
 from .forms import CategoriaForm, ContaForm, LancamentoForm, OrcamentoForm
 from .models import Categoria, Conta, Lancamento, Orcamento
@@ -57,18 +61,18 @@ def conta_lista(request):
     return render(request, 'financas/conta_lista.html', {'contas': contas})
 
 
-@organizacao_requerida
+@papel_requerido('admin')
 def conta_criar(request):
     return _salvar(request, ContaForm, 'Conta', 'conta_lista')
 
 
-@organizacao_requerida
+@papel_requerido('admin')
 def conta_editar(request, pk):
     conta = get_object_or_404(Conta, pk=pk, organizacao=org_atual(request))
     return _salvar(request, ContaForm, 'Conta', 'conta_lista', instance=conta)
 
 
-@organizacao_requerida
+@papel_requerido('admin')
 def conta_excluir(request, pk):
     conta = get_object_or_404(Conta, pk=pk, organizacao=org_atual(request))
     qtd = conta.lancamentos.count()
@@ -87,18 +91,18 @@ def categoria_lista(request):
     return render(request, 'financas/categoria_lista.html', {'categorias': categorias})
 
 
-@organizacao_requerida
+@papel_requerido('admin')
 def categoria_criar(request):
     return _salvar(request, CategoriaForm, 'Categoria', 'categoria_lista')
 
 
-@organizacao_requerida
+@papel_requerido('admin')
 def categoria_editar(request, pk):
     categoria = get_object_or_404(Categoria, pk=pk, organizacao=org_atual(request))
     return _salvar(request, CategoriaForm, 'Categoria', 'categoria_lista', instance=categoria)
 
 
-@organizacao_requerida
+@papel_requerido('admin')
 def categoria_excluir(request, pk):
     categoria = get_object_or_404(Categoria, pk=pk, organizacao=org_atual(request))
     return _excluir(request, categoria, 'categoria_lista')
@@ -115,20 +119,20 @@ def lancamento_editar(request, pk):
     )
 
 
-@organizacao_requerida
+@papel_requerido('admin')
 def lancamento_excluir(request, pk):
     lancamento = get_object_or_404(Lancamento, pk=pk, organizacao=org_atual(request))
     aviso = f'As {lancamento.numero_parcelas} parcelas também serão excluídas.' if lancamento.parcelado else ''
     return _excluir(request, lancamento, 'lancamento_lista', aviso)
 
 
-@organizacao_requerida
+@papel_requerido('admin')
 def orcamento_editar(request, pk):
     orcamento = get_object_or_404(Orcamento, pk=pk, organizacao=org_atual(request))
     return _salvar(request, OrcamentoForm, 'Orçamento', 'orcamento_lista', instance=orcamento)
 
 
-@organizacao_requerida
+@papel_requerido('admin')
 def orcamento_excluir(request, pk):
     orcamento = get_object_or_404(Orcamento, pk=pk, organizacao=org_atual(request))
     return _excluir(request, orcamento, 'orcamento_lista')

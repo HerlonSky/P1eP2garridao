@@ -1,0 +1,13 @@
+{% extends 'financas/base.html' %}
+{% block title %}Sem permissão{% endblock %}
+
+{% block content %}
+<div class="card p-4 bg-white" style="max-width: 600px;">
+    <h1 class="h3 mb-3">Sem permissão</h1>
+    <p>
+        Seu papel nesta organização é <strong>{{ request.user.perfil.get_papel_display }}</strong>,
+        e esta ação é exclusiva de administradores.
+    </p>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Voltar ao dashboard</a>
+</div>
+{% endblock %}

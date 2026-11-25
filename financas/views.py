@@ -5,7 +5,7 @@ from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from core.utils import org_atual, organizacao_requerida
+from core.utils import org_atual, organizacao_requerida, papel_requerido
 
 from .forms import LancamentoForm, OrcamentoForm
 from .models import Categoria, Conta, Lancamento, Orcamento, Parcela
@@ -109,7 +109,7 @@ def orcamento_lista(request):
     return render(request, 'financas/orcamento_lista.html', {'orcamentos': orcamentos})
 
 
-@organizacao_requerida
+@papel_requerido('admin')
 def orcamento_criar(request):
     return _salvar(request, OrcamentoForm, 'Orçamento', 'orcamento_lista')
 

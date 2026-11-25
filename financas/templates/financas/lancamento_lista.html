@@ -55,7 +55,7 @@
             <td>{% if l.parcelado %}{{ l.numero_parcelas }}x{% else %}à vista{% endif %}</td>
             <td class="text-end text-nowrap">
                 <a href="{% url 'lancamento_editar' l.pk %}" class="btn btn-sm btn-outline-secondary">Editar</a>
-                <a href="{% url 'lancamento_excluir' l.pk %}" class="btn btn-sm btn-outline-danger">Excluir</a>
+                {% if user.perfil.eh_admin %}<a href="{% url 'lancamento_excluir' l.pk %}" class="btn btn-sm btn-outline-danger">Excluir</a>{% endif %}
             </td>
         </tr>
         {% empty %}

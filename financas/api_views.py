@@ -1,4 +1,7 @@
 from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+
+from core.permissions import SomenteAdminExclui, TemOrganizacao
 
 from core.utils import org_atual
 
@@ -25,7 +28,8 @@ class LancamentoListCreate(DaOrganizacaoMixin, generics.ListCreateAPIView):
 
 
 class LancamentoDetail(DaOrganizacaoMixin, generics.RetrieveUpdateDestroyAPIView):
-    """GET detalha; PUT/PATCH atualiza; DELETE apaga. Id de outra organização dá 404."""
+    """GET detalha; PUT/PATCH atualiza; DELETE apaga (só admin). Id de outra organização dá 404."""
 
+    permission_classes = [IsAuthenticated, TemOrganizacao, SomenteAdminExclui]
     queryset = Lancamento.objects.select_related('conta', 'categoria')
     serializer_class = LancamentoSerializer

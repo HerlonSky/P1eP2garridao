@@ -4,7 +4,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Contas</h1>
-    <a href="{% url 'conta_criar' %}" class="btn btn-primary">+ Nova conta</a>
+    {% if user.perfil.eh_admin %}<a href="{% url 'conta_criar' %}" class="btn btn-primary">+ Nova conta</a>{% endif %}
 </div>
 
 <div class="table-wrap">
@@ -20,8 +20,10 @@
             <td>R$ {{ conta.saldo_inicial|floatformat:"2g" }}</td>
             <td><strong>R$ {{ conta.saldo_atual|floatformat:"2g" }}</strong></td>
             <td class="text-end text-nowrap">
+                {% if user.perfil.eh_admin %}
                 <a href="{% url 'conta_editar' conta.pk %}" class="btn btn-sm btn-outline-secondary">Editar</a>
                 <a href="{% url 'conta_excluir' conta.pk %}" class="btn btn-sm btn-outline-danger">Excluir</a>
+                {% endif %}
             </td>
         </tr>
         {% empty %}

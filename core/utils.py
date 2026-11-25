@@ -43,3 +43,23 @@ def organizacao_requerida(view):
         return view(request, *args, **kwargs)
 
     return _view
+
+
+def papel_requerido(*papeis):
+    """Restringe a view a certos papéis. Ex.: @papel_requerido('admin').
+
+    Já inclui @organizacao_requerida (login + perfil). Usuário sem o papel
+    recebe 403, com uma página explicando o motivo.
+    """
+
+    def decorator(view):
+        @organizacao_requerida
+        @wraps(view)
+        def _view(request, *args, **kwargs):
+            if request.user.perfil.papel not in papeis:
+                return render(request, 'core/sem_permissao.html', status=403)
+            return view(request, *args, **kwargs)
+
+        return _view
+
+    return decorator
