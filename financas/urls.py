@@ -4,6 +4,7 @@ from . import views, views_cadastros as cad
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
+    path('dashboard/', views.dashboard),  # mesmo dashboard, no endereço usado na Aula 17
     path('dashboard/exportar.csv', views.dashboard_exportar_csv, name='dashboard_exportar_csv'),
 
     path('lancamentos/', views.lancamento_lista, name='lancamento_lista'),

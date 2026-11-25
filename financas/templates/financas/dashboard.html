@@ -217,6 +217,6 @@
 </div>
 {# Dados das métricas como JSON seguro (json_script) + Chart.js + nosso script em arquivo separado #}
 {{ graficos|json_script:"dados-graficos" }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'financas/js/chart.umd.min.js' %}"></script>{# Chart.js 4.4.1 (MIT), cópia local #}
 <script src="{% static 'financas/js/dashboard.js' %}"></script>
 {% endblock %}
