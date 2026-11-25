@@ -94,6 +94,17 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Log de SQL no terminal (Aula 17, "ligue a visão"): com SQL_LOG=True no .env,
+# cada consulta que o ORM faz aparece no terminal do runserver, com o tempo.
+# Serve para caçar N+1. Só funciona com DEBUG=True; deixe desligado no dia a dia.
+if os.getenv('SQL_LOG', 'False') == 'True':
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {'console': {'class': 'logging.StreamHandler'}},
+        'loggers': {'django.db.backends': {'handlers': ['console'], 'level': 'DEBUG'}},
+    }
+
 # API: só usuários autenticados acessam (nunca deixar uma API de escrita aberta).
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
