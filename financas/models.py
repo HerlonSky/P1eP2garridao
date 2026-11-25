@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Sum
 
+from core.models import DaOrganizacao
+
 
 def somar_meses(data_base, meses):
     """Soma uma quantidade de meses a uma data, ajustando o dia se o mês destino for mais curto."""
@@ -16,7 +18,7 @@ def somar_meses(data_base, meses):
     return date(ano, mes, dia)
 
 
-class Conta(models.Model):
+class Conta(DaOrganizacao):
     TIPO_CHOICES = [
         ('corrente', 'Conta Corrente'),
         ('poupanca', 'Poupança'),
@@ -42,7 +44,7 @@ class Conta(models.Model):
         return self.saldo_inicial + receitas - despesas
 
 
-class Categoria(models.Model):
+class Categoria(DaOrganizacao):
     TIPO_CHOICES = [
         ('receita', 'Receita'),
         ('despesa', 'Despesa'),
@@ -60,7 +62,7 @@ class Categoria(models.Model):
         return f'{self.nome} ({self.get_tipo_display()})'
 
 
-class Lancamento(models.Model):
+class Lancamento(DaOrganizacao):
     """Uma movimentação financeira: uma receita, ou uma despesa (à vista ou parcelada)."""
 
     TIPO_CHOICES = [
@@ -147,7 +149,7 @@ class Parcela(models.Model):
         return f'{self.lancamento.descricao} - Parcela {self.numero}/{self.lancamento.numero_parcelas}'
 
 
-class Orcamento(models.Model):
+class Orcamento(DaOrganizacao):
     """Limite de gasto planejado para uma categoria em um mês/ano específico."""
 
     categoria = models.ForeignKey(Categoria, on_delete=models.CASCADE, related_name='orcamentos')

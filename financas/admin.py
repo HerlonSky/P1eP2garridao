@@ -13,23 +13,23 @@ class ParcelaInline(admin.TabularInline):
 
 @admin.register(Conta)
 class ContaAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'tipo', 'saldo_inicial', 'saldo_atual')
-    list_filter = ('tipo',)
+    list_display = ('nome', 'organizacao', 'tipo', 'saldo_inicial', 'saldo_atual')
+    list_filter = ('organizacao', 'tipo')
     search_fields = ('nome',)
 
 
 @admin.register(Categoria)
 class CategoriaAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'tipo')
-    list_filter = ('tipo',)
+    list_display = ('nome', 'organizacao', 'tipo')
+    list_filter = ('organizacao', 'tipo')
     search_fields = ('nome',)
 
 
 @admin.register(Lancamento)
 class LancamentoAdmin(admin.ModelAdmin):
     # A validação do valor (> 0) está em Lancamento.clean(), que o Admin já chama.
-    list_display = ('descricao', 'conta', 'categoria', 'tipo', 'valor', 'data', 'parcelado', 'numero_parcelas')
-    list_filter = ('tipo', 'parcelado', 'categoria', 'conta')
+    list_display = ('descricao', 'organizacao', 'conta', 'categoria', 'tipo', 'valor', 'data', 'parcelado', 'numero_parcelas')
+    list_filter = ('organizacao', 'tipo', 'parcelado')
     search_fields = ('descricao',)
     date_hierarchy = 'data'
     inlines = [ParcelaInline]
@@ -37,12 +37,12 @@ class LancamentoAdmin(admin.ModelAdmin):
 
 @admin.register(Orcamento)
 class OrcamentoAdmin(admin.ModelAdmin):
-    list_display = ('categoria', 'mes', 'ano', 'valor_limite', 'valor_gasto', 'percentual_usado', 'estourado')
-    list_filter = ('ano', 'mes', 'categoria')
+    list_display = ('categoria', 'organizacao', 'mes', 'ano', 'valor_limite', 'valor_gasto', 'percentual_usado', 'estourado')
+    list_filter = ('organizacao', 'ano', 'mes')
 
 
 @admin.register(Parcela)
 class ParcelaAdmin(admin.ModelAdmin):
     list_display = ('lancamento', 'numero', 'valor', 'data_vencimento', 'paga')
-    list_filter = ('paga', 'data_vencimento')
+    list_filter = ('lancamento__organizacao', 'paga', 'data_vencimento')
     search_fields = ('lancamento__descricao',)
