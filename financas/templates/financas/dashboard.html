@@ -3,45 +3,143 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">Dashboard</h1>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+    <div>
+        <h1 class="mb-1">Dashboard</h1>
+        <div class="text-muted small">
+            {% if inicio or fim %}
+                Período: {{ inicio|date:"d/m/Y"|default:"início" }} a {{ fim|date:"d/m/Y"|default:"hoje em diante" }}
+            {% else %}
+                Período: todo o histórico
+            {% endif %}
+            · por data de vencimento das parcelas
+        </div>
+    </div>
 
+    <form method="get" class="d-flex flex-wrap align-items-end gap-2">
+        <div>
+            <label class="form-label small mb-0" for="id_inicio">Início</label>
+            {{ form_periodo.inicio }}
+        </div>
+        <div>
+            <label class="form-label small mb-0" for="id_fim">Fim</label>
+            {{ form_periodo.fim }}
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
+        {% for rotulo, query in atalhos %}
+            <a href="{{ query }}" class="btn btn-sm btn-outline-secondary">{{ rotulo }}</a>
+        {% endfor %}
+    </form>
+</div>
+
+{% if form_periodo.errors %}
+    <div class="alert alert-warning py-2">
+        Período inválido ({% for e in form_periodo.non_field_errors %}{{ e }}{% endfor %}{% for f in form_periodo %}{% for e in f.errors %} {{ f.label }}: {{ e }}{% endfor %}{% endfor %}).
+        Mostrando o ano corrente.
+    </div>
+{% endif %}
+
+<!-- KPIs: aggregate numa única consulta -->
 <div class="row mb-4 g-3">
     <div class="col-6 col-lg-3">
         <div class="stat-tile">
             <div class="stat-icon">💙</div>
-            <div class="stat-label">Saldo total</div>
+            <div class="stat-label">Saldo atual das contas</div>
             <div class="stat-value">R$ {{ saldo_total|floatformat:"2g" }}</div>
         </div>
     </div>
     <div class="col-6 col-lg-3">
         <div class="stat-tile">
             <div class="stat-icon">💜</div>
-            <div class="stat-label">Receitas de {{ mes_atual }}/{{ ano_atual }}</div>
-            <div class="stat-value">R$ {{ receitas_mes|floatformat:"2g" }}</div>
+            <div class="stat-label">Receitas no período</div>
+            <div class="stat-value">R$ {{ kpis.receitas|floatformat:"2g" }}</div>
         </div>
     </div>
     <div class="col-6 col-lg-3">
         <div class="stat-tile">
             <div class="stat-icon">🩷</div>
-            <div class="stat-label">Despesas de {{ mes_atual }}/{{ ano_atual }}</div>
-            <div class="stat-value">R$ {{ despesas_mes|floatformat:"2g" }}</div>
+            <div class="stat-label">Despesas no período</div>
+            <div class="stat-value">R$ {{ kpis.despesas|floatformat:"2g" }}</div>
+            <div class="stat-hint {% if kpis.resultado < 0 %}text-danger{% else %}text-success{% endif %}">
+                Resultado: R$ {{ kpis.resultado|floatformat:"2g" }}
+            </div>
         </div>
     </div>
     <div class="col-6 col-lg-3">
         <div class="stat-tile">
             <div class="stat-icon">💛</div>
-            <div class="stat-label">Parcelas em aberto</div>
-            <div class="stat-value">{{ total_parcelas_em_aberto }}</div>
+            <div class="stat-label">Parcelas em aberto no período</div>
+            <div class="stat-value">{{ kpis.parcelas_em_aberto }}</div>
+            <div class="stat-hint">R$ {{ kpis.valor_em_aberto|floatformat:"2g" }} a pagar</div>
             {% if orcamentos_estourados %}
-                <div class="stat-hint text-danger">{{ orcamentos_estourados }} orçamento(s) estourado(s)</div>
+                <div class="stat-hint text-danger">{{ orcamentos_estourados }} orçamento(s) estourado(s) no mês</div>
             {% endif %}
         </div>
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card">
+<div class="row mb-4 g-3">
+    <!-- Ranking: values + annotate + order_by -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">Categorias com mais gastos</div>
+            <ul class="list-group list-group-flush">
+                {% for item in ranking_categorias %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>{{ forloop.counter }}. {{ item.lancamento__categoria__nome }}</span>
+                        <strong>R$ {{ item.total|floatformat:"2g" }}</strong>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-muted">Sem despesas no período.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Distribuição: despesas por conta -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">Despesas por conta</div>
+            <ul class="list-group list-group-flush">
+                {% for item in distribuicao_contas %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>{{ item.lancamento__conta__nome }}</span>
+                        <strong>R$ {{ item.total|floatformat:"2g" }}</strong>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-muted">Sem despesas no período.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+{% if mostra_series %}
+<!-- Série temporal: TruncMonth (só administradores) -->
+<div class="card mb-4">
+    <div class="card-header">Receitas × despesas por mês</div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th></tr></thead>
+            <tbody>
+                {% for linha in serie_mensal %}
+                    <tr>
+                        <td>{{ linha.mes|date:"m/Y" }}</td>
+                        <td>R$ {{ linha.receitas|floatformat:"2g" }}</td>
+                        <td>R$ {{ linha.despesas|floatformat:"2g" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="3" class="text-muted">Sem dados no período.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card h-100">
             <div class="card-header">Contas</div>
             <ul class="list-group list-group-flush">
                 {% for conta in contas %}
@@ -50,14 +148,14 @@
                         <strong>R$ {{ conta.saldo_atual|floatformat:"2g" }}</strong>
                     </li>
                 {% empty %}
-                    <li class="list-group-item text-muted">Nenhuma conta cadastrada. <a href="{% url 'conta_criar' %}">Cadastre uma conta</a>.</li>
+                    <li class="list-group-item text-muted">Nenhuma conta cadastrada.</li>
                 {% endfor %}
             </ul>
         </div>
     </div>
 
-    <div class="col-md-6">
-        <div class="card">
+    <div class="col-md-4">
+        <div class="card h-100">
             <div class="card-header">Orçamentos de {{ mes_atual }}/{{ ano_atual }}</div>
             <ul class="list-group list-group-flush">
                 {% for orc in orcamentos_do_mes %}
@@ -80,37 +178,14 @@
             </div>
         </div>
     </div>
-</div>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">Últimos lançamentos</div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">Próximas parcelas a pagar</div>
             <ul class="list-group list-group-flush">
-                {% for l in ultimos_lancamentos %}
+                {% for p in proximas_parcelas %}
                     <li class="list-group-item d-flex justify-content-between">
-                        <span>{{ l.data|date:"d/m/Y" }} - {{ l.descricao }}</span>
-                        <span class="{% if l.tipo == 'despesa' %}text-danger{% else %}text-success{% endif %}">
-                            R$ {{ l.valor|floatformat:"2g" }}
-                        </span>
-                    </li>
-                {% empty %}
-                    <li class="list-group-item text-muted">Nenhum lançamento ainda.</li>
-                {% endfor %}
-            </ul>
-            <div class="card-footer text-end">
-                <a href="{% url 'lancamento_lista' %}" class="small">Ver todos os lançamentos →</a>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">Parcelas em aberto</div>
-            <ul class="list-group list-group-flush">
-                {% for p in parcelas_em_aberto %}
-                    <li class="list-group-item d-flex justify-content-between">
-                        <span>{{ p.data_vencimento|date:"d/m/Y" }} - {{ p.lancamento.descricao }} ({{ p.numero }}/{{ p.lancamento.numero_parcelas }})</span>
+                        <span>{{ p.data_vencimento|date:"d/m" }} · {{ p.lancamento.descricao }} ({{ p.numero }}/{{ p.lancamento.numero_parcelas }})</span>
                         <strong>R$ {{ p.valor|floatformat:"2g" }}</strong>
                     </li>
                 {% empty %}

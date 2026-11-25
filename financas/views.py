@@ -1,12 +1,14 @@
+import calendar
 from datetime import date
 
 from django.contrib import messages
-from django.db.models import Q, Sum
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from core.utils import org_atual, organizacao_requerida, papel_requerido
 
+from .dashboard import ler_periodo, metricas, para_grafico
 from .forms import LancamentoForm, OrcamentoForm
 from .models import Categoria, Conta, Lancamento, Orcamento, Parcela
 from .views_cadastros import _salvar
@@ -18,39 +20,54 @@ from .views_cadastros import _salvar
 @organizacao_requerida
 def dashboard(request):
     org = org_atual(request)
+    eh_admin = request.user.perfil.eh_admin
     hoje = date.today()
+
+    # Métricas do período (todas derivam da mesma base filtrada: org + período).
+    form_periodo, inicio, fim = ler_periodo(request.GET)
+    dados = metricas(org, inicio, fim, com_serie=eh_admin)
+
+    # Retrato atual (não depende do período): saldos, orçamentos do mês e próximas parcelas.
     contas = Conta.objects.filter(organizacao=org).com_saldo()
     orcamentos_do_mes = (
         Orcamento.objects.filter(organizacao=org, mes=hoje.month, ano=hoje.year)
         .select_related('categoria').com_gasto()
     )
-    lancamentos = Lancamento.objects.filter(organizacao=org)
-    parcelas = Parcela.objects.filter(lancamento__organizacao=org)
-    parcelas_em_aberto_qs = parcelas.filter(paga=False).select_related('lancamento').order_by('data_vencimento')
-
-    saldo_total = sum((conta.saldo_atual for conta in contas), 0)
-
-    receitas_mes = lancamentos.filter(
-        tipo='receita', data__year=hoje.year, data__month=hoje.month,
-    ).aggregate(total=Sum('valor'))['total'] or 0
-
-    despesas_mes = parcelas.filter(
-        lancamento__tipo='despesa', data_vencimento__year=hoje.year, data_vencimento__month=hoje.month,
-    ).aggregate(total=Sum('valor'))['total'] or 0
+    proximas_parcelas = (
+        Parcela.objects.filter(lancamento__organizacao=org, paga=False, lancamento__tipo='despesa')
+        .select_related('lancamento').order_by('data_vencimento')[:8]
+    )
 
     return render(request, 'financas/dashboard.html', {
+        'form_periodo': form_periodo,
+        'inicio': inicio,
+        'fim': fim,
+        'atalhos': atalhos_de_periodo(hoje),
+        'kpis': dados['kpis'],
+        'ranking_categorias': dados['ranking_categorias'],
+        'distribuicao_contas': dados['distribuicao_contas'],
+        'serie_mensal': dados.get('serie_mensal', []),
+        'graficos': para_grafico(dados),
+        # Dashboard por papel (Aula 17): série e exportação só para administradores.
+        'mostra_series': eh_admin,
         'contas': contas,
+        'saldo_total': sum((conta.saldo_atual for conta in contas), 0),
         'orcamentos_do_mes': orcamentos_do_mes,
-        'ultimos_lancamentos': lancamentos.select_related('conta', 'categoria')[:10],
-        'parcelas_em_aberto': parcelas_em_aberto_qs[:10],
+        'orcamentos_estourados': sum(1 for o in orcamentos_do_mes if o.estourado),
+        'proximas_parcelas': proximas_parcelas,
         'mes_atual': hoje.month,
         'ano_atual': hoje.year,
-        'saldo_total': saldo_total,
-        'receitas_mes': receitas_mes,
-        'despesas_mes': despesas_mes,
-        'total_parcelas_em_aberto': parcelas_em_aberto_qs.count(),
-        'orcamentos_estourados': sum(1 for o in orcamentos_do_mes if o.estourado),
     })
+
+
+def atalhos_de_periodo(hoje):
+    """Links prontos de período para o filtro do dashboard."""
+    ultimo_dia = calendar.monthrange(hoje.year, hoje.month)[1]
+    return [
+        ('Este mês', f'?inicio={hoje:%Y-%m}-01&fim={hoje:%Y-%m}-{ultimo_dia:02d}'),
+        ('Este ano', f'?inicio={hoje.year}-01-01&fim={hoje.year}-12-31'),
+        ('Tudo', '?inicio=&fim='),
+    ]
 
 
 @organizacao_requerida

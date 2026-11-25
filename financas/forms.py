@@ -3,6 +3,27 @@ from django import forms
 from .models import Categoria, Conta, Lancamento, Orcamento
 
 
+class PeriodoForm(forms.Form):
+    """Filtro de período do dashboard. Valida e converte as datas da URL:
+    uma string como "abc" vira erro de formulário, não erro 500."""
+
+    inicio = forms.DateField(
+        required=False, label='Início',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control form-control-sm'}, format='%Y-%m-%d'),
+    )
+    fim = forms.DateField(
+        required=False, label='Fim',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control form-control-sm'}, format='%Y-%m-%d'),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        inicio, fim = cleaned_data.get('inicio'), cleaned_data.get('fim')
+        if inicio and fim and inicio > fim:
+            raise forms.ValidationError('A data de início deve ser anterior à data de fim.')
+        return cleaned_data
+
+
 class FormDaOrganizacao(forms.ModelForm):
     """Base dos forms de negócio: recebe a organização do usuário logado.
 
