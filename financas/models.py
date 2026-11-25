@@ -102,6 +102,13 @@ class Lancamento(DaOrganizacao):
             erros['numero_parcelas'] = 'Informe pelo menos 2 parcelas para um lançamento parcelado.'
         if not self.parcelado:
             self.numero_parcelas = 1
+        # Multi-organização: conta e categoria precisam ser da mesma organização
+        # do lançamento (defesa extra além dos selects filtrados).
+        if self.organizacao_id:
+            if self.conta_id and self.conta.organizacao_id != self.organizacao_id:
+                erros['conta'] = 'Conta inválida.'
+            if self.categoria_id and self.categoria.organizacao_id != self.organizacao_id:
+                erros['categoria'] = 'Categoria inválida.'
         if erros:
             raise ValidationError(erros)
 
@@ -165,8 +172,13 @@ class Orcamento(DaOrganizacao):
         return f'{self.categoria.nome} - {self.mes:02d}/{self.ano} (limite R$ {self.valor_limite})'
 
     def clean(self):
-        if not 1 <= self.mes <= 12:
-            raise ValidationError('Mês deve estar entre 1 e 12.')
+        erros = {}
+        if self.mes is not None and not 1 <= self.mes <= 12:
+            erros['mes'] = 'Mês deve estar entre 1 e 12.'
+        if self.organizacao_id and self.categoria_id and self.categoria.organizacao_id != self.organizacao_id:
+            erros['categoria'] = 'Categoria inválida.'
+        if erros:
+            raise ValidationError(erros)
 
     @property
     def valor_gasto(self):

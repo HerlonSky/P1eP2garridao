@@ -5,31 +5,41 @@ from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from core.utils import org_atual, organizacao_requerida
+
 from .forms import LancamentoForm, OrcamentoForm
 from .models import Categoria, Conta, Lancamento, Orcamento, Parcela
 
+# Regra de ouro (Aula 14): toda consulta parte de filter(organizacao=org),
+# e "org" vem sempre de org_atual(request), nunca da URL ou do formulário.
 
+
+@organizacao_requerida
 def dashboard(request):
+    org = org_atual(request)
     hoje = date.today()
-    contas = Conta.objects.all()
-    orcamentos_do_mes = Orcamento.objects.filter(mes=hoje.month, ano=hoje.year).select_related('categoria')
-    ultimos_lancamentos = Lancamento.objects.select_related('conta', 'categoria')[:10]
-    parcelas_em_aberto_qs = Parcela.objects.filter(paga=False).select_related('lancamento').order_by('data_vencimento')
+    contas = Conta.objects.filter(organizacao=org)
+    orcamentos_do_mes = (
+        Orcamento.objects.filter(organizacao=org, mes=hoje.month, ano=hoje.year).select_related('categoria')
+    )
+    lancamentos = Lancamento.objects.filter(organizacao=org)
+    parcelas = Parcela.objects.filter(lancamento__organizacao=org)
+    parcelas_em_aberto_qs = parcelas.filter(paga=False).select_related('lancamento').order_by('data_vencimento')
 
     saldo_total = sum((conta.saldo_atual for conta in contas), 0)
 
-    receitas_mes = Lancamento.objects.filter(
+    receitas_mes = lancamentos.filter(
         tipo='receita', data__year=hoje.year, data__month=hoje.month,
     ).aggregate(total=Sum('valor'))['total'] or 0
 
-    despesas_mes = Parcela.objects.filter(
+    despesas_mes = parcelas.filter(
         lancamento__tipo='despesa', data_vencimento__year=hoje.year, data_vencimento__month=hoje.month,
     ).aggregate(total=Sum('valor'))['total'] or 0
 
     return render(request, 'financas/dashboard.html', {
         'contas': contas,
         'orcamentos_do_mes': orcamentos_do_mes,
-        'ultimos_lancamentos': ultimos_lancamentos,
+        'ultimos_lancamentos': lancamentos.select_related('conta', 'categoria')[:10],
         'parcelas_em_aberto': parcelas_em_aberto_qs[:10],
         'mes_atual': hoje.month,
         'ano_atual': hoje.year,
@@ -41,8 +51,14 @@ def dashboard(request):
     })
 
 
+@organizacao_requerida
 def lancamento_lista(request):
-    lancamentos = Lancamento.objects.select_related('conta', 'categoria').prefetch_related('parcelas')
+    org = org_atual(request)
+    lancamentos = (
+        Lancamento.objects.filter(organizacao=org)
+        .select_related('conta', 'categoria')
+        .prefetch_related('parcelas')
+    )
 
     # Feature 1: busca por descrição + filtro por categoria (podem ser usados juntos ou separados)
     q = request.GET.get('q', '').strip()
@@ -60,55 +76,66 @@ def lancamento_lista(request):
 
     return render(request, 'financas/lancamento_lista.html', {
         'lancamentos': lancamentos,
-        'categorias': Categoria.objects.all(),
+        'categorias': Categoria.objects.filter(organizacao=org),
         'categoria_id': categoria_id,
         'filtrando': bool(q or categoria_id),
     })
 
 
+@organizacao_requerida
 def lancamento_criar(request):
-    if request.method == 'POST':
-        form = LancamentoForm(request.POST)
-        if form.is_valid():
-            lancamento = form.save()
-            if lancamento.parcelado:
-                messages.success(
-                    request,
-                    f'Lançamento criado e dividido em {lancamento.numero_parcelas} parcelas automaticamente.',
-                )
-            else:
-                messages.success(request, 'Lançamento criado com sucesso.')
-            return redirect('lancamento_lista')
-    else:
-        form = LancamentoForm()
+    org = org_atual(request)
+    form = LancamentoForm(request.POST or None, org=org)
+    if request.method == 'POST' and form.is_valid():
+        # commit=False: o form não tem o campo organizacao; quem define é o usuário logado.
+        lancamento = form.save(commit=False)
+        lancamento.organizacao = org
+        lancamento.save()
+        if lancamento.parcelado:
+            messages.success(
+                request,
+                f'Lançamento criado e dividido em {lancamento.numero_parcelas} parcelas automaticamente.',
+            )
+        else:
+            messages.success(request, 'Lançamento criado com sucesso.')
+        return redirect('lancamento_lista')
     return render(request, 'financas/lancamento_form.html', {'form': form})
 
 
+@organizacao_requerida
 def orcamento_lista(request):
-    orcamentos = Orcamento.objects.select_related('categoria')
+    orcamentos = Orcamento.objects.filter(organizacao=org_atual(request)).select_related('categoria')
     return render(request, 'financas/orcamento_lista.html', {'orcamentos': orcamentos})
 
 
+@organizacao_requerida
 def orcamento_criar(request):
-    if request.method == 'POST':
-        form = OrcamentoForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Orçamento criado com sucesso.')
-            return redirect('orcamento_lista')
-    else:
-        form = OrcamentoForm()
+    org = org_atual(request)
+    form = OrcamentoForm(request.POST or None, org=org)
+    if request.method == 'POST' and form.is_valid():
+        orcamento = form.save(commit=False)
+        orcamento.organizacao = org
+        orcamento.save()
+        messages.success(request, 'Orçamento criado com sucesso.')
+        return redirect('orcamento_lista')
     return render(request, 'financas/orcamento_form.html', {'form': form})
 
 
+@organizacao_requerida
 def parcela_lista(request):
-    parcelas = Parcela.objects.select_related('lancamento', 'lancamento__categoria')
+    parcelas = (
+        Parcela.objects.filter(lancamento__organizacao=org_atual(request))
+        .select_related('lancamento', 'lancamento__categoria')
+    )
     return render(request, 'financas/parcela_lista.html', {'parcelas': parcelas})
 
 
 @require_POST
+@organizacao_requerida
 def parcela_marcar_paga(request, pk):
-    parcela = get_object_or_404(Parcela, pk=pk)
+    # Com a organização no filtro, o id de uma parcela de outra organização dá 404,
+    # como se não existisse (não revela que o registro existe).
+    parcela = get_object_or_404(Parcela, pk=pk, lancamento__organizacao=org_atual(request))
     parcela.paga = not parcela.paga
     parcela.save(update_fields=['paga'])
     return redirect('parcela_lista')

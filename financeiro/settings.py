@@ -98,9 +98,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
+        'core.permissions.TemOrganizacao',
     ],
 }
 
-# Depois de fazer login, manda o usuário direto para o dashboard.
+# Todas as telas exigem login; depois de entrar, o usuário vai para o dashboard.
+LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
-LOGOUT_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'login'

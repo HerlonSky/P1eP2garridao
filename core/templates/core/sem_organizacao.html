@@ -1,0 +1,16 @@
+{% extends 'financas/base.html' %}
+{% block title %}Sem organização{% endblock %}
+
+{% block content %}
+<div class="card p-4 bg-white" style="max-width: 600px;">
+    <h1 class="h3 mb-3">Usuário sem organização</h1>
+    <p>
+        O usuário <strong>{{ request.user.username }}</strong> ainda não está vinculado a nenhuma organização,
+        então não há dados financeiros para mostrar.
+    </p>
+    <p class="mb-0">
+        Peça a um administrador para criar um <strong>Perfil</strong> para você no
+        <a href="/admin/core/perfil/add/">Django Admin</a>, escolhendo a organização.
+    </p>
+</div>
+{% endblock %}
