@@ -50,7 +50,7 @@ class DaOrganizacaoMixin:
 
 
 class ContaViewSet(DaOrganizacaoMixin, viewsets.ModelViewSet):
-    queryset = Conta.objects.all()
+    queryset = Conta.objects.com_saldo()
     serializer_class = ContaSerializer
     permission_classes = PERMISSOES_BASE + [EhAdminOuSomenteLeitura]
 
@@ -92,6 +92,6 @@ class ParcelaViewSet(DaOrganizacaoMixin, mixins.ListModelMixin, mixins.RetrieveM
 
 
 class OrcamentoViewSet(DaOrganizacaoMixin, viewsets.ModelViewSet):
-    queryset = Orcamento.objects.select_related('categoria')
+    queryset = Orcamento.objects.select_related('categoria').com_gasto()
     serializer_class = OrcamentoSerializer
     permission_classes = PERMISSOES_BASE + [EhAdminOuSomenteLeitura]

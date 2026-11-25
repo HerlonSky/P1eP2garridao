@@ -3,9 +3,13 @@ from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Sum
+from django.db.models import DecimalField, OuterRef, Q, Subquery, Sum, Value
+from django.db.models.functions import Coalesce
 
 from core.models import DaOrganizacao
+
+DINHEIRO = DecimalField(max_digits=12, decimal_places=2)
+ZERO = Value(0, output_field=DINHEIRO)
 
 
 def somar_meses(data_base, meses):
@@ -16,6 +20,18 @@ def somar_meses(data_base, meses):
     ultimo_dia_do_mes = calendar.monthrange(ano, mes)[1]
     dia = min(data_base.day, ultimo_dia_do_mes)
     return date(ano, mes, dia)
+
+
+class ContaQuerySet(models.QuerySet):
+    def com_saldo(self):
+        """Calcula receitas e despesas de todas as contas numa única consulta.
+
+        Sem isto, cada conta.saldo_atual fazia 2 consultas (N+1 no dashboard).
+        """
+        return self.annotate(
+            _receitas=Coalesce(Sum('lancamentos__valor', filter=Q(lancamentos__tipo='receita')), ZERO),
+            _despesas=Coalesce(Sum('lancamentos__valor', filter=Q(lancamentos__tipo='despesa')), ZERO),
+        )
 
 
 class Conta(DaOrganizacao):
@@ -31,6 +47,8 @@ class Conta(DaOrganizacao):
     saldo_inicial = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     criada_em = models.DateTimeField(auto_now_add=True)
 
+    objects = ContaQuerySet.as_manager()
+
     class Meta:
         ordering = ['nome']
 
@@ -39,9 +57,14 @@ class Conta(DaOrganizacao):
 
     @property
     def saldo_atual(self):
-        receitas = self.lancamentos.filter(tipo='receita').aggregate(total=Sum('valor'))['total'] or 0
-        despesas = self.lancamentos.filter(tipo='despesa').aggregate(total=Sum('valor'))['total'] or 0
-        return self.saldo_inicial + receitas - despesas
+        # Usa os totais já calculados por Conta.objects.com_saldo(), se houver.
+        if hasattr(self, '_receitas'):
+            return self.saldo_inicial + self._receitas - self._despesas
+        totais = self.lancamentos.aggregate(
+            receitas=Coalesce(Sum('valor', filter=Q(tipo='receita')), ZERO),
+            despesas=Coalesce(Sum('valor', filter=Q(tipo='despesa')), ZERO),
+        )
+        return self.saldo_inicial + totais['receitas'] - totais['despesas']
 
 
 class Categoria(DaOrganizacao):
@@ -89,6 +112,8 @@ class Lancamento(DaOrganizacao):
 
     class Meta:
         ordering = ['-data']
+        # Toda listagem filtra pela organização e ordena pela data.
+        indexes = [models.Index(fields=['organizacao', 'data'])]
 
     def __str__(self):
         return f'{self.descricao} - R$ {self.valor}'
@@ -170,9 +195,33 @@ class Parcela(models.Model):
     class Meta:
         ordering = ['data_vencimento', 'numero']
         unique_together = ('lancamento', 'numero')
+        # data_vencimento é usada em filtros por período, agrupamentos por mês
+        # (dashboard) e ordenação: vale um índice.
+        indexes = [models.Index(fields=['data_vencimento'])]
 
     def __str__(self):
         return f'{self.lancamento.descricao} - Parcela {self.numero}/{self.lancamento.numero_parcelas}'
+
+
+class OrcamentoQuerySet(models.QuerySet):
+    def com_gasto(self):
+        """Calcula o gasto de cada orçamento na mesma consulta (Subquery correlacionada).
+
+        Sem isto, cada orçamento fazia uma consulta para valor_gasto, repetida por
+        percentual_usado e estourado no template (N+1).
+        """
+        gasto = (
+            Parcela.objects.filter(
+                lancamento__categoria=OuterRef('categoria'),
+                lancamento__tipo='despesa',
+                data_vencimento__year=OuterRef('ano'),
+                data_vencimento__month=OuterRef('mes'),
+            )
+            .values('lancamento__categoria')
+            .annotate(total=Sum('valor'))
+            .values('total')
+        )
+        return self.annotate(_gasto=Coalesce(Subquery(gasto, output_field=DINHEIRO), ZERO))
 
 
 class Orcamento(DaOrganizacao):
@@ -182,6 +231,8 @@ class Orcamento(DaOrganizacao):
     mes = models.PositiveSmallIntegerField()
     ano = models.PositiveSmallIntegerField()
     valor_limite = models.DecimalField(max_digits=10, decimal_places=2)
+
+    objects = OrcamentoQuerySet.as_manager()
 
     class Meta:
         ordering = ['-ano', '-mes']
@@ -202,13 +253,16 @@ class Orcamento(DaOrganizacao):
     @property
     def valor_gasto(self):
         """Soma as parcelas da categoria que vencem neste mês/ano (independente de quando a compra foi feita)."""
+        if hasattr(self, '_gasto'):  # já calculado por Orcamento.objects.com_gasto()
+            return self._gasto
         total = Parcela.objects.filter(
             lancamento__categoria=self.categoria,
             lancamento__tipo='despesa',
             data_vencimento__year=self.ano,
             data_vencimento__month=self.mes,
         ).aggregate(total=Sum('valor'))['total']
-        return total or 0
+        self._gasto = total or 0  # guarda para percentual_usado e estourado não repetirem a consulta
+        return self._gasto
 
     @property
     def percentual_usado(self):

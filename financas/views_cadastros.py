@@ -57,7 +57,7 @@ def _excluir(request, objeto, voltar_para, aviso=''):
 
 @organizacao_requerida
 def conta_lista(request):
-    contas = Conta.objects.filter(organizacao=org_atual(request))
+    contas = Conta.objects.filter(organizacao=org_atual(request)).com_saldo()
     return render(request, 'financas/conta_lista.html', {'contas': contas})
 
 

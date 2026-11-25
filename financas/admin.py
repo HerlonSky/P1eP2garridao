@@ -14,6 +14,10 @@ class ParcelaInline(admin.TabularInline):
 @admin.register(Conta)
 class ContaAdmin(admin.ModelAdmin):
     list_display = ('nome', 'organizacao', 'tipo', 'saldo_inicial', 'saldo_atual')
+    list_select_related = ('organizacao',)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).com_saldo()
     list_filter = ('organizacao', 'tipo')
     search_fields = ('nome',)
 
@@ -39,6 +43,10 @@ class LancamentoAdmin(admin.ModelAdmin):
 class OrcamentoAdmin(admin.ModelAdmin):
     list_display = ('categoria', 'organizacao', 'mes', 'ano', 'valor_limite', 'valor_gasto', 'percentual_usado', 'estourado')
     list_filter = ('organizacao', 'ano', 'mes')
+    list_select_related = ('categoria', 'organizacao')
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).com_gasto()
 
 
 @admin.register(Parcela)

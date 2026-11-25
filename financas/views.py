@@ -19,9 +19,10 @@ from .views_cadastros import _salvar
 def dashboard(request):
     org = org_atual(request)
     hoje = date.today()
-    contas = Conta.objects.filter(organizacao=org)
+    contas = Conta.objects.filter(organizacao=org).com_saldo()
     orcamentos_do_mes = (
-        Orcamento.objects.filter(organizacao=org, mes=hoje.month, ano=hoje.year).select_related('categoria')
+        Orcamento.objects.filter(organizacao=org, mes=hoje.month, ano=hoje.year)
+        .select_related('categoria').com_gasto()
     )
     lancamentos = Lancamento.objects.filter(organizacao=org)
     parcelas = Parcela.objects.filter(lancamento__organizacao=org)
@@ -105,7 +106,7 @@ def lancamento_criar(request):
 
 @organizacao_requerida
 def orcamento_lista(request):
-    orcamentos = Orcamento.objects.filter(organizacao=org_atual(request)).select_related('categoria')
+    orcamentos = Orcamento.objects.filter(organizacao=org_atual(request)).select_related('categoria').com_gasto()
     return render(request, 'financas/orcamento_lista.html', {'orcamentos': orcamentos})
 
 
