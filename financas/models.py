@@ -123,8 +123,20 @@ class Lancamento(DaOrganizacao):
         if not self.parcelado:
             self.numero_parcelas = 1
         is_novo = self.pk is None
+        precisa_regerar = False
+        if not is_novo:
+            # Na edição: se mudou valor, data ou nº de parcelas, as parcelas antigas
+            # não batem mais com o lançamento e precisam ser refeitas.
+            antes = Lancamento.objects.filter(pk=self.pk).values('valor', 'data', 'numero_parcelas').first()
+            precisa_regerar = antes is not None and (
+                antes['valor'] != self.valor
+                or antes['data'] != self.data
+                or antes['numero_parcelas'] != self.numero_parcelas
+            )
         super().save(*args, **kwargs)
-        if is_novo:
+        if precisa_regerar:
+            self.parcelas.all().delete()
+        if is_novo or precisa_regerar:
             self.gerar_parcelas()
 
     def gerar_parcelas(self):

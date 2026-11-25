@@ -50,7 +50,7 @@
                         <strong>R$ {{ conta.saldo_atual|floatformat:"2g" }}</strong>
                     </li>
                 {% empty %}
-                    <li class="list-group-item text-muted">Nenhuma conta cadastrada. Cadastre pelo Admin.</li>
+                    <li class="list-group-item text-muted">Nenhuma conta cadastrada. <a href="{% url 'conta_criar' %}">Cadastre uma conta</a>.</li>
                 {% endfor %}
             </ul>
         </div>

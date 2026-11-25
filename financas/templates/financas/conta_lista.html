@@ -1,0 +1,33 @@
+{% extends 'financas/base.html' %}
+{% block title %}Contas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Contas</h1>
+    <a href="{% url 'conta_criar' %}" class="btn btn-primary">+ Nova conta</a>
+</div>
+
+<div class="table-wrap">
+<table class="table table-striped mb-0">
+    <thead>
+        <tr><th>Nome</th><th>Tipo</th><th>Saldo inicial</th><th>Saldo atual</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for conta in contas %}
+        <tr>
+            <td>{{ conta.nome }}</td>
+            <td>{{ conta.get_tipo_display }}</td>
+            <td>R$ {{ conta.saldo_inicial|floatformat:"2g" }}</td>
+            <td><strong>R$ {{ conta.saldo_atual|floatformat:"2g" }}</strong></td>
+            <td class="text-end text-nowrap">
+                <a href="{% url 'conta_editar' conta.pk %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                <a href="{% url 'conta_excluir' conta.pk %}" class="btn btn-sm btn-outline-danger">Excluir</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-muted text-center">Nenhuma conta cadastrada ainda.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

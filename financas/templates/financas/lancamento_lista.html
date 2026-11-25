@@ -36,6 +36,7 @@
             <th>Tipo</th>
             <th>Valor</th>
             <th>Parcelas</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
@@ -52,9 +53,13 @@
             </td>
             <td>R$ {{ l.valor|floatformat:"2g" }}</td>
             <td>{% if l.parcelado %}{{ l.numero_parcelas }}x{% else %}à vista{% endif %}</td>
+            <td class="text-end text-nowrap">
+                <a href="{% url 'lancamento_editar' l.pk %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                <a href="{% url 'lancamento_excluir' l.pk %}" class="btn btn-sm btn-outline-danger">Excluir</a>
+            </td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="text-muted text-center">
+        <tr><td colspan="8" class="text-muted text-center">
             {% if filtrando %}Nenhum lançamento encontrado para essa busca/filtro.{% else %}Nenhum lançamento cadastrado ainda.{% endif %}
         </td></tr>
         {% endfor %}

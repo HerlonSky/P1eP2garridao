@@ -9,6 +9,7 @@ from core.utils import org_atual, organizacao_requerida
 
 from .forms import LancamentoForm, OrcamentoForm
 from .models import Categoria, Conta, Lancamento, Orcamento, Parcela
+from .views_cadastros import _salvar
 
 # Regra de ouro (Aula 14): toda consulta parte de filter(organizacao=org),
 # e "org" vem sempre de org_atual(request), nunca da URL ou do formulário.
@@ -99,7 +100,7 @@ def lancamento_criar(request):
         else:
             messages.success(request, 'Lançamento criado com sucesso.')
         return redirect('lancamento_lista')
-    return render(request, 'financas/lancamento_form.html', {'form': form})
+    return render(request, 'financas/lancamento_form.html', {'form': form, 'titulo': 'Novo lançamento'})
 
 
 @organizacao_requerida
@@ -110,15 +111,7 @@ def orcamento_lista(request):
 
 @organizacao_requerida
 def orcamento_criar(request):
-    org = org_atual(request)
-    form = OrcamentoForm(request.POST or None, org=org)
-    if request.method == 'POST' and form.is_valid():
-        orcamento = form.save(commit=False)
-        orcamento.organizacao = org
-        orcamento.save()
-        messages.success(request, 'Orçamento criado com sucesso.')
-        return redirect('orcamento_lista')
-    return render(request, 'financas/orcamento_form.html', {'form': form})
+    return _salvar(request, OrcamentoForm, 'Orçamento', 'orcamento_lista')
 
 
 @organizacao_requerida

@@ -1,11 +1,12 @@
 {% extends 'financas/base.html' %}
-{% block title %}Novo Lançamento{% endblock %}
+{% block title %}{{ titulo }}{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">Novo Lançamento</h1>
+<h1 class="mb-4">{{ titulo }}</h1>
 
 <form method="post" class="card p-4 bg-white" style="max-width: 600px;">
     {% csrf_token %}
+    {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
     {% for field in form %}
         <div class="mb-3">
             <label class="form-label">{{ field.label }}</label>
@@ -14,10 +15,14 @@
             {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
         </div>
     {% endfor %}
-    <button type="submit" class="btn btn-primary">Salvar</button>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Salvar</button>
+        <a href="{% url 'lancamento_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
 </form>
 
 <p class="text-muted mt-3">
     Se marcar "parcelado", o sistema cria as parcelas automaticamente, uma por mês, a partir da data informada.
+    {% if form.instance.pk %}Ao editar, se mudar o valor, a data ou o número de parcelas, as parcelas são refeitas (e voltam a ficar em aberto).{% endif %}
 </p>
 {% endblock %}

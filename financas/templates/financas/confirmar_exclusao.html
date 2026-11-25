@@ -1,0 +1,15 @@
+{% extends 'financas/base.html' %}
+{% block title %}Excluir{% endblock %}
+
+{% block content %}
+<div class="card p-4 bg-white" style="max-width: 560px;">
+    <h1 class="h3 mb-3">Excluir registro</h1>
+    <p>Tem certeza que deseja excluir <strong>{{ objeto }}</strong>?</p>
+    {% if aviso %}<div class="alert alert-warning">{{ aviso }}</div>{% endif %}
+    <form method="post" class="d-flex gap-2">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Sim, excluir</button>
+        <a href="{% url voltar_para %}" class="btn btn-outline-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}
