@@ -26,6 +26,41 @@ class FormDaOrganizacao(forms.ModelForm):
             self.fields[campo].queryset = model.objects.filter(organizacao=org)
 
 
+class CategoriaForm(FormDaOrganizacao):
+    class Meta:
+        model = Categoria
+        fields = ['nome', 'tipo']
+        widgets = {
+            'nome': forms.TextInput(attrs={'class': 'form-control'}),
+            'tipo': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+    def clean(self):
+        # "organizacao" está fora do form, então o Django não confere a
+        # UniqueConstraint (organizacao, nome, tipo) aqui. Conferimos à mão para
+        # mostrar um erro amigável em vez de estourar IntegrityError no save.
+        cleaned_data = super().clean()
+        nome, tipo = cleaned_data.get('nome'), cleaned_data.get('tipo')
+        if nome and tipo:
+            duplicadas = Categoria.objects.filter(organizacao=self.org, nome__iexact=nome, tipo=tipo)
+            if self.instance.pk:
+                duplicadas = duplicadas.exclude(pk=self.instance.pk)
+            if duplicadas.exists():
+                self.add_error('nome', 'Já existe uma categoria com esse nome e tipo.')
+        return cleaned_data
+
+
+class ContaForm(FormDaOrganizacao):
+    class Meta:
+        model = Conta
+        fields = ['nome', 'tipo', 'saldo_inicial']
+        widgets = {
+            'nome': forms.TextInput(attrs={'class': 'form-control'}),
+            'tipo': forms.Select(attrs={'class': 'form-select'}),
+            'saldo_inicial': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }
+
+
 class LancamentoForm(FormDaOrganizacao):
     campos_da_organizacao = {'conta': Conta, 'categoria': Categoria}
 

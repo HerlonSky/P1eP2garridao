@@ -41,10 +41,17 @@ class ValidaPeloModelMixin:
             setattr(instancia, campo, valor)
         try:
             instancia.clean()
+            # Unicidade por organização (UniqueConstraint/unique_together com a org,
+            # que não é um campo do serializer).
+            instancia.validate_unique()
+            instancia.validate_constraints()
         except DjangoValidationError as erro:
-            raise serializers.ValidationError(
-                erro.message_dict if hasattr(erro, 'error_dict') else {'non_field_errors': erro.messages}
-            )
+            if not hasattr(erro, 'error_dict'):
+                raise serializers.ValidationError({'non_field_errors': erro.messages})
+            erros = erro.message_dict
+            if '__all__' in erros:
+                erros['non_field_errors'] = erros.pop('__all__')
+            raise serializers.ValidationError(erros)
         # o clean() pode normalizar campos (ex.: numero_parcelas = 1 se não parcelado)
         for campo in attrs:
             attrs[campo] = getattr(instancia, campo)

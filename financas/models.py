@@ -56,7 +56,14 @@ class Categoria(DaOrganizacao):
     class Meta:
         ordering = ['nome']
         verbose_name_plural = 'categorias'
-        unique_together = ('nome', 'tipo')
+        # Unicidade por organização: duas organizações podem ter "Alimentação",
+        # mas a mesma organização não pode ter "Alimentação (Despesa)" duas vezes.
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organizacao', 'nome', 'tipo'],
+                name='categoria_unica_por_org',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.nome} ({self.get_tipo_display()})'
