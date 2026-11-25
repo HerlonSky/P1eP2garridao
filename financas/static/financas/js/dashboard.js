@@ -3,7 +3,7 @@
 // template as escreve na página com o filtro json_script. Aqui só lemos esse
 // JSON e desenhamos.
 
-(function () {
+function desenharGraficos() {
     if (typeof Chart === 'undefined') return; // CDN indisponível: as tabelas continuam na página
 
     // Cores categóricas em ordem fixa (paleta validada para daltonismo).
@@ -19,6 +19,8 @@
     const GRADE = 'rgba(63, 52, 87, 0.08)';
 
     const reais = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    // No eixo, formato curto ("R$ 2 mil") para os rótulos não se amontoarem.
+    const reaisCurto = (v) => 'R$ ' + v.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
 
     Chart.defaults.font.family = "'Quicksand', 'Segoe UI', sans-serif";
     Chart.defaults.color = TEXTO;
@@ -37,7 +39,7 @@
         beginAtZero: true,
         grid: { color: GRADE },
         border: { display: false },
-        ticks: { callback: (v) => reais(v) },
+        ticks: { callback: (v) => reaisCurto(v), maxTicksLimit: 6, maxRotation: 0 },
     };
     const eixoCategoria = { grid: { display: false }, border: { display: false } };
 
@@ -60,7 +62,7 @@
                 maintainAspectRatio: false,
                 datasets: { bar: { borderRadius: 4, maxBarThickness: 28, categoryPercentage: 0.7, barPercentage: 0.9 } },
                 interaction: { mode: 'index', intersect: false },
-                plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 12, boxHeight: 12 } } },
+                plugins: { legend: { position: 'top', align: 'start', labels: { boxWidth: 12, boxHeight: 12, padding: 16 } } },
                 scales: { x: eixoCategoria, y: eixoValor },
             },
         });
@@ -78,6 +80,7 @@
             options: {
                 indexAxis: 'y',
                 maintainAspectRatio: false,
+                layout: { padding: { left: 6 } },
                 datasets: { bar: { borderRadius: 4, maxBarThickness: 22 } },
                 plugins: { legend: { display: false } },
                 scales: { x: eixoValor, y: eixoCategoria },
@@ -106,4 +109,12 @@
             },
         });
     }
-})();
+}
+
+// Espera a fonte do tema (Quicksand) carregar: o Chart.js mede os rótulos ao
+// desenhar, e medir com a fonte provisória corta o texto dos eixos.
+if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(desenharGraficos);
+} else {
+    desenharGraficos();
+}
