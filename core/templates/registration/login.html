@@ -24,4 +24,16 @@
         <button type="submit" class="btn btn-primary w-100">Entrar</button>
     </form>
 </div>
+
+{% if modo_demo %}
+<div class="card p-3 bg-white mx-auto mt-3 small" style="max-width: 420px;">
+    <strong class="mb-1">Usuários de demonstração</strong>
+    <div class="text-muted mb-2">Criados com <code>python manage.py popular_demo</code> · senha <code>demo12345</code></div>
+    <table class="table table-sm mb-0">
+        <tr><td><code>ana</code></td><td>Família Souza</td><td>Administrador</td></tr>
+        <tr><td><code>otto</code></td><td>Família Souza</td><td>Operador</td></tr>
+        <tr><td><code>bia</code></td><td>República Vassouras</td><td>Administrador</td></tr>
+    </table>
+</div>
+{% endif %}
 {% endblock %}

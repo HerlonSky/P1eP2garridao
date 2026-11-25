@@ -63,8 +63,10 @@ da organização no período, pela data de vencimento (regime de caixa).
 
 - Filtro por período com `PeriodoForm`: uma data inválida na URL não gera erro 500.
   Atalhos "Este mês", "Este ano" e "Tudo"; sem filtro, mostra o ano corrente.
-- Gráficos com **Chart.js**: os dados vão para a página com `json_script`, e o JS fica em
-  `financas/static/financas/js/dashboard.js`. As tabelas continuam na página.
+- Gráficos com **Chart.js** (cópia local em `static`, sem depender de CDN): os dados vão para a
+  página com `json_script`, e o JS fica em `financas/static/financas/js/dashboard.js`.
+  As tabelas continuam na página.
+- O dashboard abre em `/` e também em `/dashboard/`.
 - **Exportar CSV** (`/dashboard/exportar.csv`, só admin): usa a mesma base e o mesmo período.
   Sai no formato do Excel em português (`;` e vírgula decimal) e é protegido contra injeção de fórmula.
 
@@ -100,7 +102,7 @@ curl -u ana:demo12345 "http://127.0.0.1:8000/api/dashboard/?inicio=2026-01-01&fi
 - Django REST Framework
 - SQLite (roda localmente sem instalar servidor de banco)
 - python-dotenv (`SECRET_KEY` e `DEBUG` fora do código-fonte)
-- Bootstrap e Chart.js via CDN
+- Bootstrap via CDN e Chart.js (cópia local)
 
 ## Como rodar localmente
 
@@ -113,7 +115,7 @@ venv\Scripts\activate
 pip install -r requirements.txt
 
 # 3. copiar o arquivo de variáveis de ambiente (e trocar a SECRET_KEY)
-copy .env.example .env
+copy .env.example .env      # no Linux/macOS: cp .env.example .env
 
 # 4. criar as tabelas
 python manage.py migrate
@@ -140,6 +142,45 @@ Para refazer os dados de demonstração: `python manage.py popular_demo --recria
 
 O superusuário criado com `createsuperuser` não tem perfil. Ele usa o **Django Admin**
 (`/admin/`), onde enxerga todas as organizações e pode criar organizações, usuários e perfis.
+Se ele abrir as telas do sistema, vê uma página explicando que precisa de um perfil.
+
+## Roteiro para testar
+
+Um passo a passo para conferir cada pilar, depois do `popular_demo` (senha de todos: `demo12345`).
+
+**1. Multi-organização (isolamento)**
+1. Entre como **`ana`** (Família Souza) e abra **Lançamentos**. Anote o id de algum lançamento
+   no link "Editar" (ex.: `/lancamentos/5/editar/`).
+2. Saia (botão **Sair**) e entre como **`bia`** (República Vassouras). Ela vê outros lançamentos,
+   contas e categorias, e o dashboard dela tem outros números.
+3. Ainda como `bia`, abra o endereço anotado no passo 1: a resposta é **404**, como se o registro não existisse.
+4. Em **Novo lançamento**, os selects de conta e categoria só mostram as opções da República.
+
+**2. Perfis de acesso**
+1. Entre como **`otto`** (operador da Família Souza). Em **Contas**, **Categorias** e **Orçamentos**,
+   não aparecem os botões de criar, editar e excluir. O botão de excluir lançamento também some.
+2. Ainda como `otto`, abra `/contas/nova/` direto na barra de endereço: a resposta é **403**,
+   com uma página explicando a falta de permissão.
+3. No dashboard, o `otto` não vê a série mensal nem o botão **Exportar CSV**; a `ana` vê os dois.
+
+**3. Dashboard**
+1. Como `ana`, use os atalhos **Este mês / Este ano / Tudo** ou escolha datas e clique em **Filtrar**:
+   cartões, ranking, gráficos e tabelas mudam juntos.
+2. Coloque uma data inválida na URL (`/?inicio=abc`): a página mostra um aviso em vez de erro 500.
+3. **Exportar CSV** baixa as parcelas do período, prontas para abrir no Excel.
+
+**4. API REST**
+1. Logado no navegador, abra **`/api/`**: é a Browsable API do DRF, com links para todos os recursos.
+2. Em `/api/lancamentos/`, use o formulário no fim da página para criar um lançamento com valor `0`:
+   a resposta é **400** com a mensagem "O valor do lançamento deve ser maior que zero."
+3. Saia e abra `/api/contas/`: a resposta é **403** (a API exige login).
+4. No terminal: `curl -u otto:demo12345 -X DELETE http://127.0.0.1:8000/api/lancamentos/<id>/`
+   dá **403** (operador não exclui); com `ana:demo12345`, dá **204**.
+
+**5. Testes automáticos:** `python manage.py test` (36 testes).
+
+**6. Consultas SQL (N+1):** com `SQL_LOG=True` no `.env`, cada consulta do ORM aparece no
+terminal do `runserver`. Navegando pelas telas, o número de consultas não cresce com a quantidade de dados.
 
 ## Testes
 
