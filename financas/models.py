@@ -85,10 +85,23 @@ class Lancamento(models.Model):
         return f'{self.descricao} - R$ {self.valor}'
 
     def clean(self):
-        if self.parcelado and self.numero_parcelas < 2:
-            raise ValidationError('Um lançamento parcelado precisa de pelo menos 2 parcelas.')
-        if not self.parcelado and self.numero_parcelas != 1:
-            raise ValidationError('Lançamentos não parcelados devem ter exatamente 1 parcela.')
+        """Regras de negócio do lançamento, num lugar só.
+
+        Ficam no model (e não no form) para valerem igualmente nas telas,
+        no Django Admin e na API: os três chamam este clean().
+        """
+        erros = {}
+        # Feature 2 da P1: o valor deve ser maior que zero. Receita/despesa já é
+        # indicada pelo campo "tipo"; um valor negativo inverteria o saldo da conta
+        # e um valor zero geraria parcelas de R$ 0,00 sem sentido.
+        if self.valor is not None and self.valor <= 0:
+            erros['valor'] = 'O valor do lançamento deve ser maior que zero.'
+        if self.parcelado and (self.numero_parcelas or 0) < 2:
+            erros['numero_parcelas'] = 'Informe pelo menos 2 parcelas para um lançamento parcelado.'
+        if not self.parcelado:
+            self.numero_parcelas = 1
+        if erros:
+            raise ValidationError(erros)
 
     def save(self, *args, **kwargs):
         if not self.parcelado:

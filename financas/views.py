@@ -3,6 +3,7 @@ from datetime import date
 from django.contrib import messages
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from .forms import LancamentoForm, OrcamentoForm
 from .models import Categoria, Conta, Lancamento, Orcamento, Parcela
@@ -105,6 +106,7 @@ def parcela_lista(request):
     return render(request, 'financas/parcela_lista.html', {'parcelas': parcelas})
 
 
+@require_POST
 def parcela_marcar_paga(request, pk):
     parcela = get_object_or_404(Parcela, pk=pk)
     parcela.paga = not parcela.paga

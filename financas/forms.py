@@ -17,26 +17,8 @@ class LancamentoForm(forms.ModelForm):
             'parcelado': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'numero_parcelas': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
         }
-
-    def clean_valor(self):
-        # Feature 2: o valor do lançamento deve ser maior que zero.
-        # Receita/despesa já é indicada pelo campo "tipo"; um valor negativo inverteria o
-        # saldo da conta, e um valor zero geraria parcelas de R$ 0,00 sem sentido.
-        valor = self.cleaned_data.get('valor')
-        if valor is not None and valor <= 0:
-            raise forms.ValidationError('O valor do lançamento deve ser maior que zero.')
-        return valor
-
-    def clean(self):
-        cleaned_data = super().clean()
-        parcelado = cleaned_data.get('parcelado')
-        numero_parcelas = cleaned_data.get('numero_parcelas')
-
-        if parcelado and (not numero_parcelas or numero_parcelas < 2):
-            self.add_error('numero_parcelas', 'Informe pelo menos 2 parcelas para um lançamento parcelado.')
-        if not parcelado:
-            cleaned_data['numero_parcelas'] = 1
-        return cleaned_data
+    # A validação (valor > 0 e número de parcelas) fica em Lancamento.clean():
+    # o ModelForm chama o clean() do model automaticamente.
 
 
 class OrcamentoForm(forms.ModelForm):
